@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ob30AeqlL4SWA7YL88vB+cnhAM3bQSSqQPFxWFmcixg=' https://www.gstatic.com; connect-src https://*.googleapis.com; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-HSqTc/5MoiUanGjUid+Uz5yNP16H2Qmrrt+xNOGkTpY=' https://www.gstatic.com; connect-src https://*.googleapis.com; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <title>Sync Hub – RGCE</title>
@@ -26,6 +26,7 @@ input[type=text],input[type=url],input[type=email],input[type=password],input[ty
 #log{max-height:240px;overflow:auto;font-size:13px}#log div{padding:3px 0;border-bottom:1px solid var(--bd)}
 button.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
 .ban{border-left:4px solid var(--ok)}
+footer{text-align:center;padding:18px 14px 26px;color:var(--mu);font-size:13px}
 label{font-size:13px}a{color:var(--pr)}.hide{display:none!important}
 </style>
 </head>
@@ -87,14 +88,15 @@ label{font-size:13px}a{color:var(--pr)}.hide{display:none!important}
 
   <div class="grid">
     <div class="card">
-      <h2>Test a customer number</h2>
-      <div class="row"><input type="tel" id="ph" placeholder="01XXXXXXXXX" style="flex:1"><button id="tst" type="button">Test</button></div>
+      <h2>Find a customer by name</h2>
+      <div class="row"><input type="text" id="ph" placeholder="Type part of the name…" autocomplete="off" style="flex:1"><button id="tst" type="button">Search</button></div>
       <div id="tr" class="mu" style="margin-top:8px"></div>
     </div>
     <div class="card"><h2>Sync log</h2><div id="log"></div></div>
   </div>
 </div>
 </main>
+<footer><b>Roza Gift Corner &amp; Electric</b><br>Powered by Farhan Tanzid Shiyam</footer>
 
 <script type="module">
 if(window.top!==window.self){document.body.textContent='';throw new Error('framed');}  // clickjacking guard
@@ -108,12 +110,13 @@ const auth=getAuth(app), db=getFirestore(app);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'৳'+Math.round(+n||0).toLocaleString('en-US');
-let U=null,plan=null,busy=false,timer=null,lastAct=Date.now(),entered=false,justSignedIn=false;
+let U=null,plan=null,busy=false,timer=null,lastAct=Date.now(),entered=false,justSignedIn=false,CUST=[],nullT=null,tq=0;
 const IDLE_MS=10*60*1000;
 
 /* ---- idle lock: returns to the gate (does NOT sign out SparkDesk) ---- */
 ['click','keydown','touchstart','mousemove'].forEach(e=>addEventListener(e,()=>{lastAct=Date.now();},{passive:true}));
-setInterval(()=>{if(U&&entered&&Date.now()-lastAct>IDLE_MS)lockHub('Hub paused after 10 minutes of inactivity.');},15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)lastAct=Date.now();});
+setInterval(()=>{if(U&&entered&&!document.hidden&&Date.now()-lastAct>IDLE_MS)lockHub('Hub paused after 10 minutes of inactivity.');},15000);
 
 /* ---- helpers copied from SparkDesk so IDs match exactly ---- */
 function normPhone(p){var d=String(p||'').replace(/[\u09E6-\u09EF]/g,c=>String(c.charCodeAt(0)-0x09E6)).replace(/\D/g,'');if(d.indexOf('00880')===0)d=d.slice(4);else if(d.indexOf('880')===0)d=d.slice(2);if(d.length===10&&d.charAt(0)==='1')d='0'+d;return /^01\d{9}$/.test(d)?d:'';}
@@ -153,7 +156,7 @@ async function check(autoFix){
     // always read from the server, never from a stale cache
     const[shop,cfg]=await Promise.all([getDocFromServer(doc(db,'shops',U.uid)),getDocFromServer(doc(db,'private_config',U.uid))]);
     if(!shop.exists())throw new Error('No SparkDesk data for this account');
-    const d=shop.data(),cust=Array.isArray(d.customers)?d.customers:[],inv=Array.isArray(d.invoices)?d.invoices:[];
+    const d=shop.data(),cust=Array.isArray(d.customers)?d.customers:[];CUST=cust;const inv=Array.isArray(d.invoices)?d.invoices:[];
     const prev=(cfg.exists()&&cfg.data().dcuDueIds)||[];
     const exp=await buildExpected(cust),missing=[],stale=[],ids=[...exp.keys()];let ok=0;
     for(let i=0;i<ids.length;i+=25)await Promise.all(ids.slice(i,i+25).map(async id=>{const s=await getDocFromServer(doc(db,'public_dues',id));
@@ -196,13 +199,28 @@ async function fix(manual){
   if(okRun)await check(false);else $('fix').disabled=false;   // no retry loop on failure
 }
 
-/* ---- test a number (output escaped) ---- */
+/* ---- find customers by name (partial, all words must match; output escaped) ---- */
+const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+async function pubStat(c){
+  if(!plan)return '';
+  const ph=phonesOf(c.phone),ids=[];
+  if(ph.length){for(const x of ph)ids.push('p'+await sha('rgce-due-v1:'+x));}
+  else{const nm=String(c.name||'').trim()||'-',ad=String(c.address||'').trim();ids.push('c'+await sha('rgce-due-cust-v1:'+(c.id||(nm+'|'+ad))));}
+  if(ids.some(i=>plan.missing.includes(i)))return '⚠ Not in Due Checker yet';
+  if(ids.some(i=>plan.stale.includes(i)))return '⚠ Due Checker is out of date';
+  return '✅ Shown in Due Checker';
+}
 async function test(){
-  const p=normPhone($('ph').value);if(!p){$('tr').textContent='Enter a valid 01XXXXXXXXX number.';return;}
-  try{const s=await getDocFromServer(doc(db,'public_dues','p'+await sha('rgce-due-v1:'+p)));
-    if(!s.exists()){$('tr').textContent='Not found – the Due Finder would show “no record”.';return;}
-    const x=s.data();$('tr').innerHTML=`<b>${esc(x.nm)}</b><br>${esc(x.ad)}<br>Due: <b>${money(x.due)}</b> (${esc(x.n)} account${x.n>1?'s':''})`;
-  }catch(e){$('tr').textContent='Test failed: '+(e.code||e.message);}
+  const my=++tq,q=norm($('ph').value);
+  if(!q){$('tr').textContent='Type part of a customer name.';return;}
+  if(!CUST.length){$('tr').textContent='No customer data loaded yet. Press “Check now” first.';return;}
+  const toks=q.split(' '),hit=CUST.filter(c=>{const n=norm(c.name);return toks.every(t=>n.includes(t));});
+  if(!hit.length){$('tr').textContent='No customer name matches what you typed.';return;}
+  const shown=hit.slice(0,50);let h=`<div class="mu">${hit.length} match${hit.length>1?'es':''}</div>`;
+  for(const c of shown){const cd=Math.max(0,(+c.due||0)-(+c.paid||0)),st=await pubStat(c);if(my!==tq)return;
+    h+=`<div class="stat" style="display:block"><b>${esc(String(c.name||'-'))}</b>${c.address?' – '+esc(c.address):''}<br>Source: ${esc(c.source||'-')}${c.phone?' · '+esc(c.phone):''} · Due: <b>${money(cd)}</b>${st?'<br>'+esc(st):''}</div>`;}
+  if(hit.length>shown.length)h+=`<div class="mu">+${hit.length-shown.length} more – type more of the name to narrow down.</div>`;
+  if(my===tq)$('tr').innerHTML=h;
 }
 
 /* ---- built-in app links (same github.io origin => same Firebase login) ---- */
@@ -225,7 +243,7 @@ $('auto').checked=localStorage.getItem('hub_auto')==='1';
 $('auto').onchange=()=>{localStorage.setItem('hub_auto',$('auto').checked?'1':'0');arm();};
 function arm(){clearInterval(timer);if($('auto').checked&&U)timer=setInterval(()=>{if(!document.hidden)check(true);},60000);}
 $('chk').onclick=()=>check(false);$('fix').onclick=()=>fix(true);$('tst').onclick=test;
-$('ph').onkeydown=e=>{if(e.key==='Enter')test();};
+let st=null;$('ph').oninput=()=>{clearTimeout(st);st=setTimeout(test,250);};$('ph').onkeydown=e=>{if(e.key==='Enter'){clearTimeout(st);test();}};
 
 /* ---- views: login (no session) -> gate (session found, explains why) -> app ---- */
 function view(){
@@ -243,16 +261,18 @@ function lockHub(msg){entered=false;plan=null;clearInterval(timer);gateText(msg)
 $('enter').onclick=enter;
 
 onAuthStateChanged(auth,async u=>{
-  if(u){ // only the shop owner (an account with SparkDesk data) may use the Hub
-    try{const s=await getDocFromServer(doc(db,'shops',u.uid));if(!s.exists())throw 0;}
-    catch(e){justSignedIn=false;$('inMsg').textContent='This account is not allowed to use the Hub.';await signOut(auth);return;}
-    if(U&&U.uid===u.uid){U=u;return;}   // same user re-announced: keep current view
+  clearTimeout(nullT);
+  if(u){
+    if(U&&U.uid===u.uid){U=u;return;}   // same user re-announced (e.g. another tab refreshed the token): keep view, no checks, never sign out
     U=u;plan=null;lastAct=Date.now();$('inMsg').textContent='';$('pw').value='';
+    try{const s=await getDocFromServer(doc(db,'shops',u.uid));if(!s.exists())throw {code:'no-shop'};}
+    catch(e){if(e&&(e.code==='no-shop'||e.code==='permission-denied')){justSignedIn=false;$('inMsg').textContent='This account is not allowed to use the Hub.';await signOut(auth);return;}}  // network hiccup => stay signed in
     if(justSignedIn){justSignedIn=false;enter();}   // typed the password here just now: go straight in
     else{entered=false;gateText('');view();}        // login came from another app: show message first
   }else{
-    U=null;plan=null;entered=false;view();clearInterval(timer);
-    ['cC','cI','cD','cP','dE','dO','dM','dS','dX'].forEach(i=>$(i).textContent='–');$('tr').textContent='';$('log').textContent='';$('pw').value='';
+    const reset=()=>{if(auth.currentUser)return;U=null;plan=null;CUST=[];entered=false;view();clearInterval(timer);
+      ['cC','cI','cD','cP','dE','dO','dM','dS','dX'].forEach(i=>$(i).textContent='–');$('tr').textContent='';$('log').textContent='';$('pw').value='';};
+    if(U)nullT=setTimeout(reset,2000);else reset();   // brief grace period so a short sign-out blip never throws you to the login page
   }
 });
 </script>
