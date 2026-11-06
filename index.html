@@ -3,16 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-HSqTc/5MoiUanGjUid+Uz5yNP16H2Qmrrt+xNOGkTpY=' https://www.gstatic.com; connect-src https://*.googleapis.com; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ZgaTzg9xSyqG5q/Ycoj+8eID4WHa7HdR9T4vl+nZ1Q4=' https://www.gstatic.com; connect-src https://*.googleapis.com; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
 <title>Sync Hub – RGCE</title>
 <style>
 :root{--bg:#f3f6fa;--card:#fff;--tx:#16222e;--mu:#64748b;--pr:#1f4e79;--ok:#16a34a;--wa:#d97706;--er:#dc2626;--bd:#e2e8f0}
 @media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--tx:#e8eef6;--mu:#94a3b8;--pr:#5aa0e0;--bd:#334155}}
-*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea{-webkit-user-select:text;user-select:text}
+main{width:100%;flex:1 0 auto}
 header{background:#1f4e79;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-header h1{font-size:18px;margin:0}main{max-width:980px;margin:0 auto;padding:14px}
+header h1{font-size:18px;margin:0}main{max-width:1180px;margin:0 auto;padding:14px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
 h2{font-size:16px;margin:0 0 8px}.mu{color:var(--mu);font-size:13px}
@@ -26,46 +28,72 @@ input[type=text],input[type=url],input[type=email],input[type=password],input[ty
 #log{max-height:240px;overflow:auto;font-size:13px}#log div{padding:3px 0;border-bottom:1px solid var(--bd)}
 button.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
 .ban{border-left:4px solid var(--ok)}
-footer{text-align:center;padding:18px 14px 26px;color:var(--mu);font-size:13px}
+
+.layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:14px;align-items:start}
+.side{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.side .card,.mainc .card{margin-bottom:0}.mainc{display:flex;flex-direction:column;gap:14px;min-width:0}
+.col{display:flex;flex-direction:column;gap:8px}.col button{width:100%}
+@media(max-width:820px){.layout{grid-template-columns:1fr}.side{position:static;max-height:none;overflow:visible}}
+.big{font-size:16px;padding:10px;margin:0}
+.sum{margin:10px 0 0;font-size:13px;color:var(--mu)}
+.res{margin-top:12px;overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:14px;background:var(--card)}
+table.t th,table.t td{border:1px solid var(--tx);padding:7px 10px;text-align:left;vertical-align:top}
+table.t th{background:var(--bg);font-weight:700;white-space:nowrap}
+table.t td.n{text-align:right;white-space:nowrap;font-weight:600}
+table.t tfoot td{font-weight:700;background:var(--bg)}
+.p{color:var(--er)}.z{color:var(--ok)}
+mark{background:#fde68a;color:#000;border-radius:3px;padding:0 1px}
+footer{flex:none;margin-top:auto;text-align:center;padding:14px;color:var(--mu);font-size:13px;border-top:1px solid var(--bd);background:var(--card)}
 label{font-size:13px}a{color:var(--pr)}.hide{display:none!important}
 </style>
 </head>
 <body>
 <header><h1>🔄 Sync Hub</h1><div class="row"><span id="who" class="mu" style="color:#cfe0f2"></span><button class="g hide" id="out" title="Signs out SparkDesk too (shared login)">Sign out (all apps)</button></div></header>
 <main>
-<form class="card" id="login" autocomplete="on">
-  <h2>Sign in</h2>
-  <p class="mu">No active login found in this browser. Sign in once here — SparkDesk and this Hub share the same login on this domain, so after this you will not be asked again.</p>
-  <input type="email" id="em" name="email" placeholder="Email" autocomplete="username" required>
-  <input type="password" id="pw" name="password" placeholder="Password" autocomplete="current-password" required>
-  <div class="row"><button id="inBtn" type="submit">Sign in</button><span class="mu" id="inMsg" role="alert"></span></div>
-</form>
+<div class="layout">
+<aside class="side">
+  <form class="card" id="login" autocomplete="on">
+    <h2>Sign in</h2>
+    <p class="mu">No active login found in this browser. Sign in once here — SparkDesk and this Hub share the same login on this domain, so after this you will not be asked again.</p>
+    <input type="email" id="em" name="email" placeholder="Email" autocomplete="username" required>
+    <input type="password" id="pw" name="password" placeholder="Password" autocomplete="current-password" required>
+    <div class="row"><button id="inBtn" type="submit">Sign in</button><span class="mu" id="inMsg" role="alert"></span></div>
+  </form>
 
-<div class="card ban hide" id="gate">
-  <h2>✅ You are already signed in</h2>
-  <p id="gateMsg"></p>
-  <div class="row">
-    <button id="enter" type="button">Enter Sync Hub →</button>
-    <button class="s" id="other" type="button">Use a different account</button>
-  </div>
-</div>
-
-<div id="app" class="hide">
-  <div class="card">
-    <h2>Other apps</h2>
-    <div class="row">
-      <button class="s" type="button" data-app="1">Open Main App (SparkDesk) ↗</button>
-      <button class="s" type="button" data-app="2">Open Due Checker (public) ↗</button>
+  <div class="card ban hide" id="gate">
+    <h2>✅ You are already signed in</h2>
+    <p id="gateMsg"></p>
+    <div class="col">
+      <button id="enter" type="button">Enter Sync Hub →</button>
+      <button class="s" id="other" type="button">Use a different account</button>
     </div>
   </div>
-  <div class="grid">
+
+  <div id="sideApp" class="hide" style="display:contents">
+    <div class="card">
+      <h2>Other apps</h2>
+      <div class="col">
+        <button class="s" type="button" data-app="1">Open Main App (SparkDesk) ↗</button>
+        <button class="s" type="button" data-app="2">Open Due Checker (public) ↗</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Sync</h2>
+      <div class="col">
+        <button id="chk" type="button">Check now</button>
+        <button id="fix" type="button" disabled>Sync now</button>
+      </div>
+      <p style="margin:10px 0 0"><label><input type="checkbox" id="auto"> Auto check every 60 sec <span class="mu">(publishes &amp; updates only, never deletes)</span></label></p>
+      <p class="mu" id="last" style="margin:8px 0 0">Not checked yet.</p>
+    </div>
     <div class="card">
       <div class="row" style="justify-content:space-between"><h2>SparkDesk (source)</h2><span class="pill ok" id="s1">…</span></div>
       <div class="stat"><span>Customers</span><b id="cC">–</b></div>
       <div class="stat"><span>Invoices</span><b id="cI">–</b></div>
       <div class="stat"><span>Total due</span><b id="cD">–</b></div>
       <div class="stat"><span>Records to publish</span><b id="cP">–</b></div>
-          </div>
+    </div>
     <div class="card">
       <div class="row" style="justify-content:space-between"><h2>Due Finder (public)</h2><span class="pill ok" id="s2">…</span></div>
       <div class="stat"><span>Should be published</span><b id="dE">–</b></div>
@@ -73,27 +101,24 @@ label{font-size:13px}a{color:var(--pr)}.hide{display:none!important}
       <div class="stat"><span>Missing</span><b id="dM">–</b></div>
       <div class="stat"><span>Out of date</span><b id="dS">–</b></div>
       <div class="stat"><span>Old / to remove</span><b id="dX">–</b></div>
-          </div>
-  </div>
-
-  <div class="card">
-    <h2>Sync</h2>
-    <div class="row">
-      <button id="chk" type="button">Check now</button>
-      <button id="fix" type="button" disabled>Sync now</button>
-      <label><input type="checkbox" id="auto"> Auto check every 60 sec (publishes &amp; updates only, never deletes)</label>
     </div>
-    <p class="mu" id="last">Not checked yet.</p>
   </div>
+</aside>
 
-  <div class="grid">
+<section class="mainc">
+  <div class="card" id="welcome">
+    <h2>Welcome to Sync Hub</h2>
+    <p class="mu">Sign in from the sidebar to see your customer data, sync status and search here.</p>
+  </div>
+  <div id="mainApp" class="hide" style="display:contents">
     <div class="card">
       <h2>Find a customer by name</h2>
-      <div class="row"><input type="text" id="ph" placeholder="Type part of the name…" autocomplete="off" style="flex:1"><button id="tst" type="button">Search</button></div>
+      <div class="row"><input type="text" id="ph" class="big" placeholder="Type part of the name…" autocomplete="off" style="flex:1;min-width:180px"><button id="tst" type="button" class="big">Search</button></div>
       <div id="tr" class="mu" style="margin-top:8px"></div>
     </div>
-    <div class="card"><h2>Sync log</h2><div id="log"></div></div>
+    <div class="card"><h2>Sync log <span class="mu">(today only)</span></h2><div id="log"></div></div>
   </div>
+</section>
 </div>
 </main>
 <footer><b>Roza Gift Corner &amp; Electric</b><br>Powered by Farhan Tanzid Shiyam</footer>
@@ -112,6 +137,10 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const money=n=>'৳'+Math.round(+n||0).toLocaleString('en-US');
 let U=null,plan=null,busy=false,timer=null,lastAct=Date.now(),entered=false,justSignedIn=false,CUST=[],nullT=null,tq=0;
 const IDLE_MS=10*60*1000;
+/* ---- block text selection / copy / context menu everywhere except inside input boxes ---- */
+const inField=e=>{const t=e.target&&e.target.nodeType===1?e.target:e.target&&e.target.parentElement;return !!(t&&t.closest&&t.closest('input,textarea'));};
+['copy','cut','selectstart','contextmenu','dragstart'].forEach(ev=>document.addEventListener(ev,e=>{if(!inField(e))e.preventDefault();}));
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&['c','x','a','s','p','u'].includes(e.key.toLowerCase())&&!inField(e))e.preventDefault();});
 
 /* ---- idle lock: returns to the gate (does NOT sign out SparkDesk) ---- */
 ['click','keydown','touchstart','mousemove'].forEach(e=>addEventListener(e,()=>{lastAct=Date.now();},{passive:true}));
@@ -126,10 +155,12 @@ function phonesOf(v){var s=String(v||''),out=[],one=normPhone(s);if(one)return[o
   return out;}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>('0'+x.toString(16)).slice(-2)).join('');}
 
-/* ---- log (counts only, no customer data) ---- */
-function log(m,k){let a=[];try{a=JSON.parse(localStorage.getItem('hub_log')||'[]');}catch(e){}a.unshift({t:Date.now(),m:String(m).slice(0,200),k:k||'i'});try{localStorage.setItem('hub_log',JSON.stringify(a.slice(0,40)));}catch(e){}drawLog();}
-function drawLog(){let a=[];try{a=JSON.parse(localStorage.getItem('hub_log')||'[]');}catch(e){}
-  $('log').innerHTML=a.map(x=>`<div>${esc(new Date(x.t).toLocaleString())} – ${x.k==='err'?'❌':x.k==='ok'?'✅':'•'} ${esc(x.m)}</div>`).join('')||'<span class="mu">No events yet.</span>';}
+/* ---- log (counts only, no customer data) — only today's events are kept ---- */
+const dayKey=t=>new Date(t).toDateString();
+function readLog(){let a=[];try{a=JSON.parse(localStorage.getItem('hub_log')||'[]');}catch(e){}const d=dayKey(Date.now());return a.filter(x=>x&&dayKey(x.t)===d);}
+function log(m,k){const a=readLog();a.unshift({t:Date.now(),m:String(m).slice(0,200),k:k||'i'});try{localStorage.setItem('hub_log',JSON.stringify(a.slice(0,60)));}catch(e){}drawLog();}
+function drawLog(){const a=readLog();try{localStorage.setItem('hub_log',JSON.stringify(a));}catch(e){}
+  $('log').innerHTML=a.map(x=>`<div>${esc(new Date(x.t).toLocaleTimeString())} – ${x.k==='err'?'❌':x.k==='ok'?'✅':'•'} ${esc(x.m)}</div>`).join('')||'<span class="mu">No events today.</span>';}
 
 /* ---- expected public records (same rules as SparkDesk publishDue) ---- */
 async function buildExpected(customers){
@@ -210,17 +241,21 @@ async function pubStat(c){
   if(ids.some(i=>plan.stale.includes(i)))return '⚠ Due Checker is out of date';
   return '✅ Shown in Due Checker';
 }
+const hl=(name,toks)=>{const s=String(name||'-'),l=s.toLowerCase();if(l.length!==s.length)return esc(s);const m=new Array(s.length).fill(0);
+  toks.forEach(t=>{if(!t)return;let i=l.indexOf(t);while(i>=0){for(let k=i;k<i+t.length;k++)m[k]=1;i=l.indexOf(t,i+t.length);}});
+  let o='',on=false;for(let k=0;k<s.length;k++){if(m[k]&&!on){o+='<mark>';on=true;}if(!m[k]&&on){o+='</mark>';on=false;}o+=esc(s[k]);}return o+(on?'</mark>':'');};
 async function test(){
   const my=++tq,q=norm($('ph').value);
   if(!q){$('tr').textContent='Type part of a customer name.';return;}
   if(!CUST.length){$('tr').textContent='No customer data loaded yet. Press “Check now” first.';return;}
-  const toks=q.split(' '),hit=CUST.filter(c=>{const n=norm(c.name);return toks.every(t=>n.includes(t));});
+  const toks=q.split(' '),dueOf=c=>Math.max(0,(+c.due||0)-(+c.paid||0)),hit=CUST.filter(c=>{const n=norm(c.name);return toks.every(t=>n.includes(t));});
   if(!hit.length){$('tr').textContent='No customer name matches what you typed.';return;}
-  const shown=hit.slice(0,50);let h=`<div class="mu">${hit.length} match${hit.length>1?'es':''}</div>`;
-  for(const c of shown){const cd=Math.max(0,(+c.due||0)-(+c.paid||0)),st=await pubStat(c);if(my!==tq)return;
-    h+=`<div class="stat" style="display:block"><b>${esc(String(c.name||'-'))}</b>${c.address?' – '+esc(c.address):''}<br>Source: ${esc(c.source||'-')}${c.phone?' · '+esc(c.phone):''} · Due: <b>${money(cd)}</b>${st?'<br>'+esc(st):''}</div>`;}
-  if(hit.length>shown.length)h+=`<div class="mu">+${hit.length-shown.length} more – type more of the name to narrow down.</div>`;
-  if(my===tq)$('tr').innerHTML=h;
+  const shown=hit.slice(0,60);let rows='',i=0;
+  for(const c of shown){const cd=dueOf(c),st=await pubStat(c);if(my!==tq)return;const nm=String(c.name||'-').trim()||'-';i++;
+    rows+=`<tr><td>${i}</td><td>${hl(nm,toks)}</td><td>${esc(c.phone||'-')}</td><td>${esc(c.address||'-')}</td><td>${esc(c.source||'-')}</td><td class="n ${cd>0?'p':'z'}">${cd>0?money(cd):'No due'}</td><td>${esc(st||'-')}</td></tr>`;}
+  const total=hit.reduce((a,c)=>a+dueOf(c),0);
+  if(my!==tq)return;
+  $('tr').innerHTML=`<div class="sum"><b>${hit.length}</b> match${hit.length>1?'es':''}${hit.length>shown.length?` · showing first ${shown.length} — type more of the name to narrow down`:''}</div><div class="res"><table class="t"><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Address</th><th>Source</th><th>Due</th><th>Status</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="5">Total due (all ${hit.length} matches)</td><td class="n ${total>0?'p':'z'}">${money(total)}</td><td></td></tr></tfoot></table></div>`;
 }
 
 /* ---- built-in app links (same github.io origin => same Firebase login) ---- */
@@ -249,7 +284,9 @@ let st=null;$('ph').oninput=()=>{clearTimeout(st);st=setTimeout(test,250);};$('p
 function view(){
   $('login').classList.toggle('hide',!!U);
   $('gate').classList.toggle('hide',!(U&&!entered));
-  $('app').classList.toggle('hide',!(U&&entered));
+  $('sideApp').classList.toggle('hide',!(U&&entered));
+  $('mainApp').classList.toggle('hide',!(U&&entered));
+  $('welcome').classList.toggle('hide',!!(U&&entered));
   $('out').classList.toggle('hide',!U);
   $('who').textContent=U?U.email:'';
 }
