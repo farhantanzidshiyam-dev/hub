@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ob30AeqlL4SWA7YL88vB+cnhAM3bQSSqQPFxWFmcixg=' https://www.gstatic.com; connect-src https://*.googleapis.com; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
+<title>Sync Hub – RGCE</title>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--tx:#16222e;--mu:#64748b;--pr:#1f4e79;--ok:#16a34a;--wa:#d97706;--er:#dc2626;--bd:#e2e8f0}
+@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--tx:#e8eef6;--mu:#94a3b8;--pr:#5aa0e0;--bd:#334155}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:#1f4e79;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}main{max-width:980px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+h2{font-size:16px;margin:0 0 8px}.mu{color:var(--mu);font-size:13px}
+.stat{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--bd)}
+button{background:var(--pr);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+button.g{background:transparent;color:#fff;border:1px solid #fff}button:disabled{opacity:.5;cursor:not-allowed}
+input[type=text],input[type=url],input[type=email],input[type=password],input[type=tel]{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit;margin:4px 0}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-size:12px}
+.ok{background:var(--ok)}.wa{background:var(--wa)}.er{background:var(--er)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#log{max-height:240px;overflow:auto;font-size:13px}#log div{padding:3px 0;border-bottom:1px solid var(--bd)}
+button.s{background:transparent;color:var(--pr);border:1px solid var(--pr)}
+.ban{border-left:4px solid var(--ok)}
+label{font-size:13px}a{color:var(--pr)}.hide{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>🔄 Sync Hub</h1><div class="row"><span id="who" class="mu" style="color:#cfe0f2"></span><button class="g hide" id="out" title="Signs out SparkDesk too (shared login)">Sign out (all apps)</button></div></header>
+<main>
+<form class="card" id="login" autocomplete="on">
+  <h2>Sign in</h2>
+  <p class="mu">No active login found in this browser. Sign in once here — SparkDesk and this Hub share the same login on this domain, so after this you will not be asked again.</p>
+  <input type="email" id="em" name="email" placeholder="Email" autocomplete="username" required>
+  <input type="password" id="pw" name="password" placeholder="Password" autocomplete="current-password" required>
+  <div class="row"><button id="inBtn" type="submit">Sign in</button><span class="mu" id="inMsg" role="alert"></span></div>
+</form>
+
+<div class="card ban hide" id="gate">
+  <h2>✅ You are already signed in</h2>
+  <p id="gateMsg"></p>
+  <div class="row">
+    <button id="enter" type="button">Enter Sync Hub →</button>
+    <button class="s" id="other" type="button">Use a different account</button>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <div class="card">
+    <h2>Other apps</h2>
+    <div class="row">
+      <button class="s" type="button" data-app="1">Open Main App (SparkDesk) ↗</button>
+      <button class="s" type="button" data-app="2">Open Due Checker (public) ↗</button>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><h2>SparkDesk (source)</h2><span class="pill ok" id="s1">…</span></div>
+      <div class="stat"><span>Customers</span><b id="cC">–</b></div>
+      <div class="stat"><span>Invoices</span><b id="cI">–</b></div>
+      <div class="stat"><span>Total due</span><b id="cD">–</b></div>
+      <div class="stat"><span>Records to publish</span><b id="cP">–</b></div>
+          </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><h2>Due Finder (public)</h2><span class="pill ok" id="s2">…</span></div>
+      <div class="stat"><span>Should be published</span><b id="dE">–</b></div>
+      <div class="stat"><span>Up to date</span><b id="dO">–</b></div>
+      <div class="stat"><span>Missing</span><b id="dM">–</b></div>
+      <div class="stat"><span>Out of date</span><b id="dS">–</b></div>
+      <div class="stat"><span>Old / to remove</span><b id="dX">–</b></div>
+          </div>
+  </div>
+
+  <div class="card">
+    <h2>Sync</h2>
+    <div class="row">
+      <button id="chk" type="button">Check now</button>
+      <button id="fix" type="button" disabled>Sync now</button>
+      <label><input type="checkbox" id="auto"> Auto check every 60 sec (publishes &amp; updates only, never deletes)</label>
+    </div>
+    <p class="mu" id="last">Not checked yet.</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Test a customer number</h2>
+      <div class="row"><input type="tel" id="ph" placeholder="01XXXXXXXXX" style="flex:1"><button id="tst" type="button">Test</button></div>
+      <div id="tr" class="mu" style="margin-top:8px"></div>
+    </div>
+    <div class="card"><h2>Sync log</h2><div id="log"></div></div>
+  </div>
+</div>
+</main>
+
+<script type="module">
+if(window.top!==window.self){document.body.textContent='';throw new Error('framed');}  // clickjacking guard
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {getFirestore,doc,getDocFromServer,getDoc,writeBatch,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* DEFAULT app name + default (persistent) storage => same login as SparkDesk on this domain. Sign in once, every app on this origin is signed in. */
+const app=initializeApp({apiKey:"AIzaSyAqsPu8YK5xFHEoWTmZLzJl6z9NmchdrEg",authDomain:"rgce-sparkdesk.firebaseapp.com",projectId:"rgce-sparkdesk",storageBucket:"rgce-sparkdesk.firebasestorage.app",messagingSenderId:"514973995259",appId:"1:514973995259:web:af37a75e2cca5898a7605e"});
+const auth=getAuth(app), db=getFirestore(app);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'৳'+Math.round(+n||0).toLocaleString('en-US');
+let U=null,plan=null,busy=false,timer=null,lastAct=Date.now(),entered=false,justSignedIn=false;
+const IDLE_MS=10*60*1000;
+
+/* ---- idle lock: returns to the gate (does NOT sign out SparkDesk) ---- */
+['click','keydown','touchstart','mousemove'].forEach(e=>addEventListener(e,()=>{lastAct=Date.now();},{passive:true}));
+setInterval(()=>{if(U&&entered&&Date.now()-lastAct>IDLE_MS)lockHub('Hub paused after 10 minutes of inactivity.');},15000);
+
+/* ---- helpers copied from SparkDesk so IDs match exactly ---- */
+function normPhone(p){var d=String(p||'').replace(/[\u09E6-\u09EF]/g,c=>String(c.charCodeAt(0)-0x09E6)).replace(/\D/g,'');if(d.indexOf('00880')===0)d=d.slice(4);else if(d.indexOf('880')===0)d=d.slice(2);if(d.length===10&&d.charAt(0)==='1')d='0'+d;return /^01\d{9}$/.test(d)?d:'';}
+function phonesOf(v){var s=String(v||''),out=[],one=normPhone(s);if(one)return[one];
+  s.split(/[,;\/|\n]+|\s{2,}|\s+(?:or|and|\u0993)\s+/i).forEach(p=>{var n=normPhone(p);if(n&&out.indexOf(n)<0)out.push(n);});
+  if(!out.length){(s.match(/(?:\+?88)?0?1[3-9][\d\s-]{8,11}/g)||[]).forEach(x=>{var n=normPhone(x);if(n&&out.indexOf(n)<0)out.push(n);});}
+  return out;}
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>('0'+x.toString(16)).slice(-2)).join('');}
+
+/* ---- log (counts only, no customer data) ---- */
+function log(m,k){let a=[];try{a=JSON.parse(localStorage.getItem('hub_log')||'[]');}catch(e){}a.unshift({t:Date.now(),m:String(m).slice(0,200),k:k||'i'});try{localStorage.setItem('hub_log',JSON.stringify(a.slice(0,40)));}catch(e){}drawLog();}
+function drawLog(){let a=[];try{a=JSON.parse(localStorage.getItem('hub_log')||'[]');}catch(e){}
+  $('log').innerHTML=a.map(x=>`<div>${esc(new Date(x.t).toLocaleString())} – ${x.k==='err'?'❌':x.k==='ok'?'✅':'•'} ${esc(x.m)}</div>`).join('')||'<span class="mu">No events yet.</span>';}
+
+/* ---- expected public records (same rules as SparkDesk publishDue) ---- */
+async function buildExpected(customers){
+  const g={},exp=new Map();
+  customers.forEach(c=>{const ph=phonesOf(c.phone);if(!ph.length)return;const cd=Math.max(0,(+c.due||0)-(+c.paid||0));
+    ph.forEach(p=>{const x=g[p]||(g[p]={due:0,names:[],addrs:[],n:0,list:[]});x.due+=cd;x.n++;
+      if(x.list.length<25)x.list.push({nm:String(c.name||'').trim()||'-',ad:String(c.address||'').trim(),src:String(c.source==null?'':c.source).trim(),due:Math.round(cd)});
+      const m=String(c.name||'').trim()||'-';if(x.names.indexOf(m)<0&&x.names.length<3)x.names.push(m);
+      const ad=String(c.address||'').trim();if(ad&&x.addrs.indexOf(ad)<0&&x.addrs.length<3)x.addrs.push(ad);});});
+  for(const p of Object.keys(g)){const x=g[p];exp.set('p'+await sha('rgce-due-v1:'+p),{ownerUid:U.uid,due:Math.round(x.due),nm:x.names.join(', '),ad:x.addrs.join(' | '),n:x.n,cs:JSON.stringify(x.list)});}
+  for(const c of customers){if(phonesOf(c.phone).length)continue;
+    const nm=String(c.name||'').trim()||'-',ad=String(c.address||'').trim(),cd=Math.max(0,(+c.due||0)-(+c.paid||0)),sr=String(c.source==null?'':c.source).trim();
+    const id='c'+await sha('rgce-due-cust-v1:'+(c.id||(nm+'|'+ad)));
+    if(!exp.has(id))exp.set(id,{ownerUid:U.uid,due:Math.round(cd),nm,ad,n:1,cs:JSON.stringify([{nm,ad,src:sr,due:Math.round(cd)}])});}
+  return exp;
+}
+const same=(e,d)=>d.due===e.due&&d.nm===e.nm&&d.ad===e.ad&&d.n===e.n&&d.cs===e.cs;
+
+/* ---- check ---- */
+async function check(autoFix){
+  if(busy||!U)return;busy=true;$('chk').disabled=true;$('last').textContent='Checking…';
+  try{
+    if(!crypto.subtle)throw new Error('Secure (https) page required');
+    // always read from the server, never from a stale cache
+    const[shop,cfg]=await Promise.all([getDocFromServer(doc(db,'shops',U.uid)),getDocFromServer(doc(db,'private_config',U.uid))]);
+    if(!shop.exists())throw new Error('No SparkDesk data for this account');
+    const d=shop.data(),cust=Array.isArray(d.customers)?d.customers:[],inv=Array.isArray(d.invoices)?d.invoices:[];
+    const prev=(cfg.exists()&&cfg.data().dcuDueIds)||[];
+    const exp=await buildExpected(cust),missing=[],stale=[],ids=[...exp.keys()];let ok=0;
+    for(let i=0;i<ids.length;i+=25)await Promise.all(ids.slice(i,i+25).map(async id=>{const s=await getDocFromServer(doc(db,'public_dues',id));
+      if(!s.exists())missing.push(id);else if(!same(exp.get(id),s.data()))stale.push(id);else ok++;}));
+    const orphan=prev.filter(id=>!exp.has(id));
+    // safety: SparkDesk looks empty / most records would vanish => never delete without a loud warning
+    const risky=orphan.length>0&&(cust.length===0||orphan.length>Math.max(10,prev.length*0.3));
+    plan={exp,missing,stale,orphan,ids,risky};
+    $('cC').textContent=cust.length;$('cI').textContent=inv.length;$('cP').textContent=exp.size;
+    $('cD').textContent=money(cust.reduce((a,c)=>a+Math.max(0,(+c.due||0)-(+c.paid||0)),0));
+    $('dE').textContent=exp.size;$('dO').textContent=ok;$('dM').textContent=missing.length;$('dS').textContent=stale.length;$('dX').textContent=orphan.length;
+    const diff=missing.length+stale.length+orphan.length;
+    $('s1').className='pill ok';$('s1').textContent='Online';
+    $('s2').className='pill '+(diff?'wa':'ok');$('s2').textContent=diff?diff+' to sync':'In sync';
+    $('fix').disabled=!diff;
+    $('last').textContent='Last checked: '+new Date().toLocaleTimeString()+(diff?' – differences found.':' – everything matches.');
+    log(diff?`Check: ${missing.length} missing, ${stale.length} out of date, ${orphan.length} old`:'Check: in sync',diff?'i':'ok');
+    busy=false;
+    if(autoFix&&$('auto').checked&&(missing.length+stale.length))await fix(false);
+  }catch(e){plan=null;$('fix').disabled=true;$('s1').className='pill er';$('s1').textContent='Error';
+    $('last').textContent='Check failed: '+(e.code==='unavailable'?'no internet connection':e.message);log('Check failed: '+(e.code||e.message),'err');}
+  busy=false;$('chk').disabled=false;
+}
+
+/* ---- sync. manual=true may also delete old records (after confirmation); auto never deletes ---- */
+async function fix(manual){
+  if(!plan||busy)return;
+  const del=manual?plan.orphan:[];
+  if(del.length&&!confirm(plan.risky?`⚠ WARNING: ${del.length} public due record(s) would be DELETED, and SparkDesk shows ${plan.exp.size} records. If SparkDesk data failed to load, this would wipe the Due Finder. Delete anyway?`:`Remove ${del.length} old public due record(s) from the Due Finder?`))return;
+  busy=true;$('fix').disabled=true;let okRun=false;
+  try{
+    const ops=[...plan.missing,...plan.stale].map(id=>({s:1,id})).concat(del.map(id=>({s:0,id})));
+    for(let i=0;i<ops.length;i+=400){const b=writeBatch(db);
+      ops.slice(i,i+400).forEach(o=>{const r=doc(db,'public_dues',o.id);o.s?b.set(r,{...plan.exp.get(o.id),upd:serverTimestamp()}):b.delete(r);});
+      await b.commit();}
+    await setDoc(doc(db,'private_config',U.uid),{dcuDueIds:plan.ids.concat(manual?[]:plan.orphan)},{merge:true});
+    log(`Synced: ${plan.missing.length+plan.stale.length} published/updated, ${del.length} removed`,'ok');okRun=true;
+  }catch(e){log('Sync failed: '+(e.code||e.message),'err');$('last').textContent='Sync failed'+(e.code==='permission-denied'?' – check Firestore rules for public_dues':': '+e.message);}
+  busy=false;
+  if(okRun)await check(false);else $('fix').disabled=false;   // no retry loop on failure
+}
+
+/* ---- test a number (output escaped) ---- */
+async function test(){
+  const p=normPhone($('ph').value);if(!p){$('tr').textContent='Enter a valid 01XXXXXXXXX number.';return;}
+  try{const s=await getDocFromServer(doc(db,'public_dues','p'+await sha('rgce-due-v1:'+p)));
+    if(!s.exists()){$('tr').textContent='Not found – the Due Finder would show “no record”.';return;}
+    const x=s.data();$('tr').innerHTML=`<b>${esc(x.nm)}</b><br>${esc(x.ad)}<br>Due: <b>${money(x.due)}</b> (${esc(x.n)} account${x.n>1?'s':''})`;
+  }catch(e){$('tr').textContent='Test failed: '+(e.code||e.message);}
+}
+
+/* ---- built-in app links (same github.io origin => same Firebase login) ---- */
+const APPS={1:'https://farhantanzidshiyam-dev.github.io/sites/',2:'https://farhantanzidshiyam-dev.github.io/due-checker/'};
+document.querySelectorAll('[data-app]').forEach(b=>b.onclick=()=>{window.open(APPS[b.dataset.app],'_blank','noopener');});
+
+/* ---- login with local lockout ---- */
+const lock=()=>{try{return JSON.parse(localStorage.getItem('hub_lock')||'{"n":0,"u":0}');}catch(e){return{n:0,u:0};}};
+$('login').onsubmit=async ev=>{ev.preventDefault();const L=lock(),w=L.u-Date.now();
+  if(w>0){$('inMsg').textContent='Too many attempts. Try again in '+Math.ceil(w/60000)+' min.';return;}
+  $('inBtn').disabled=true;$('inMsg').textContent='Signing in…';justSignedIn=true;
+  try{await signInWithEmailAndPassword(auth,$('em').value.trim(),$('pw').value);localStorage.setItem('hub_lock','{"n":0,"u":0}');}
+  catch(e){justSignedIn=false;$('pw').value='';const n=L.n+1;localStorage.setItem('hub_lock',JSON.stringify({n:n,u:n>=5?Date.now()+5*60000:0}));
+    $('inMsg').textContent=e.code==='auth/too-many-requests'?'Too many attempts. Try later.':e.code==='auth/network-request-failed'?'No internet connection.':'Wrong email or password.';}
+  $('inBtn').disabled=false;};
+$('out').onclick=()=>signOut(auth);
+$('other').onclick=()=>signOut(auth);
+
+$('auto').checked=localStorage.getItem('hub_auto')==='1';
+$('auto').onchange=()=>{localStorage.setItem('hub_auto',$('auto').checked?'1':'0');arm();};
+function arm(){clearInterval(timer);if($('auto').checked&&U)timer=setInterval(()=>{if(!document.hidden)check(true);},60000);}
+$('chk').onclick=()=>check(false);$('fix').onclick=()=>fix(true);$('tst').onclick=test;
+$('ph').onkeydown=e=>{if(e.key==='Enter')test();};
+
+/* ---- views: login (no session) -> gate (session found, explains why) -> app ---- */
+function view(){
+  $('login').classList.toggle('hide',!!U);
+  $('gate').classList.toggle('hide',!(U&&!entered));
+  $('app').classList.toggle('hide',!(U&&entered));
+  $('out').classList.toggle('hide',!U);
+  $('who').textContent=U?U.email:'';
+}
+function gateText(extra){
+  $('gateMsg').innerHTML=(extra?esc(extra)+' ':'')+`Signed in as <b>${esc(U.email)}</b>. SparkDesk and Sync Hub use the same login on this domain, and another app is already logged in in this browser — so the Hub does not ask for a login again. Press the button to continue.`;
+}
+function enter(){entered=true;lastAct=Date.now();view();drawLog();arm();check(false);}
+function lockHub(msg){entered=false;plan=null;clearInterval(timer);gateText(msg);view();}
+$('enter').onclick=enter;
+
+onAuthStateChanged(auth,async u=>{
+  if(u){ // only the shop owner (an account with SparkDesk data) may use the Hub
+    try{const s=await getDocFromServer(doc(db,'shops',u.uid));if(!s.exists())throw 0;}
+    catch(e){justSignedIn=false;$('inMsg').textContent='This account is not allowed to use the Hub.';await signOut(auth);return;}
+    if(U&&U.uid===u.uid){U=u;return;}   // same user re-announced: keep current view
+    U=u;plan=null;lastAct=Date.now();$('inMsg').textContent='';$('pw').value='';
+    if(justSignedIn){justSignedIn=false;enter();}   // typed the password here just now: go straight in
+    else{entered=false;gateText('');view();}        // login came from another app: show message first
+  }else{
+    U=null;plan=null;entered=false;view();clearInterval(timer);
+    ['cC','cI','cD','cP','dE','dO','dM','dS','dX'].forEach(i=>$(i).textContent='–');$('tr').textContent='';$('log').textContent='';$('pw').value='';
+  }
+});
+</script>
+</body>
+</html>
